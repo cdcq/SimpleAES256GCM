@@ -1,5 +1,4 @@
 #include "aes.h"
-#include <stdlib.h>
 #include <stdio.h>
 
 #if AES_STD == 256

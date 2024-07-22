@@ -109,8 +109,8 @@ void GCMTest() {
     uint8_t p_res[48];
     uint32_t access_res;
 
-    GCMAE(p, len_p, key, iv, len_iv, a, len_a, 128, c_res, t_res);
-    GCMAD(c, len_p, key, iv, len_iv, a, len_a, t, 128, p_res, &access_res);
+    GCM_AE(p, len_p, key, iv, len_iv, a, len_a, 128, c_res, t_res);
+    GCM_AD(c, len_p, key, iv, len_iv, a, len_a, t, 128, p_res, &access_res);
 #else
     uint32_t len_p = 480;
     uint32_t len_a = 160;
@@ -158,8 +158,8 @@ void GCMTest() {
     uint8_t p_res[60];
     uint32_t access_res;
 
-    GCMAE(p, len_p, key, iv, a, len_a, 128, c_res, t_res);
-    GCMAD(c, len_p, key, iv, a, len_a, t, 128, p_res, &access_res);
+    GCM_AE(p, len_p, key, iv, a, len_a, 128, c_res, t_res);
+    GCM_AD(c, len_p, key, iv, a, len_a, t, 128, p_res, &access_res);
 #endif
 
     printf("GCM AE test: cipher %s, target %s\n",
@@ -175,7 +175,9 @@ void GCMTest() {
 void Test() {
     printf("AES standard: %d\n", AES_STD);
     AESTest();
+#if AES_STD == 256
     GCMTest();
+#endif
 }
 
 int main() {

@@ -71,11 +71,14 @@ static uint32_t Division8(uint32_t n) {
     return (n + 7) / 8;
 }
 
+/* Turn 4 continuous bytes to a 32bit unsigned int in big endian.
+ * The bytes order of big endian is same as the memory's, which is contrary to x86 default (little endian). */
 static uint32_t GetBE32(const uint8_t *x) {
     return ((uint32_t) x[0] << 24) | ((uint32_t) x[1] << 16) |
            ((uint32_t) x[2] << 8) | (uint32_t) x[3];
 }
 
+/*  Turn a 32bit unsigned int to 4 continuous bytes in big endian. */
 static void PutBE32(uint8_t *x, uint32_t y) {
     x[0] = (y >> 24) & 0xff;
     x[1] = (y >> 16) & 0xff;
@@ -216,13 +219,13 @@ static void CalculateTag(
 
 #if USE_IV_DIRECTLY == 0
 
-void GCMAE(
+void GCM_AE(
         const uint8_t *p, uint32_t len_p, const uint8_t *key, const uint8_t *iv, uint32_t len_iv,
         const uint8_t *a, uint32_t len_a, uint32_t len_t,
         uint8_t *c, uint8_t *t) {
 #else
 
-void GCMAE(
+void GCM_AE(
         const uint8_t *p, uint32_t len_p, const uint8_t *key, const uint8_t *iv,
         const uint8_t *a, uint32_t len_a, uint32_t len_t,
         uint8_t *c, uint8_t *t) {
@@ -257,13 +260,13 @@ void GCMAE(
 
 #if USE_IV_DIRECTLY == 0
 
-void GCMAD(
+void GCM_AD(
         const uint8_t *c, uint32_t len_c, const uint8_t *key, const uint8_t *iv, uint32_t len_iv,
         const uint8_t *a, uint32_t len_a, const uint8_t *t, uint32_t len_t,
         uint8_t *p, uint32_t *access) {
 #else
 
-void GCMAD(
+void GCM_AD(
         const uint8_t *c, uint32_t len_c, const uint8_t *key, const uint8_t *iv,
         const uint8_t *a, uint32_t len_a, const uint8_t *t, uint32_t len_t,
         uint8_t *p, uint32_t *access) {
