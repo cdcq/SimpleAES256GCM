@@ -36,8 +36,24 @@ static const uint8_t Rcon[11] = {
         0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36
 };
 
+static uint8_t GFMultiplication(uint8_t a, uint8_t b) {
+    uint8_t c = 0;
+    for (uint32_t i = 0; i < 8; i++) {
+        if ((b & 1) == 1)
+            c ^= a;
+        if (a & 0x80) {
+            a <<= 1;
+            a ^= 0x1b;
+        } else {
+            a <<= 1;
+        }
+        b >>= 1;
+    }
+    return c;
+}
+
 static void SubBytes(uint8_t *state) {
-    uint8_t i;
+    uint32_t i;
 
     for (i = 0; i < 16; i++)
         state[i] = S_box[state[i]];
@@ -67,7 +83,7 @@ static void ShiftRows(uint8_t *state) {
 }
 
 static void MixColumns(uint8_t *state) {
-    uint8_t i, j;
+    uint32_t i, j;
     uint8_t temp[4], column[4];
 
     for (i = 0; i < 4; i++) {
@@ -101,7 +117,7 @@ static void MixColumns(uint8_t *state) {
 }
 
 static void AddRoundKey(uint8_t *state, const uint8_t *round_key) {
-    int i, j;
+    uint32_t i, j;
 
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 4; j++) {
@@ -128,7 +144,7 @@ static void SubWord(uint8_t *word) {
 }
 
 static void KeyExpansion(const uint8_t *key, uint8_t *w) {
-    int i, j;
+    uint32_t i, j;
     uint8_t temp[4];
 
     for (i = 0; i < Nk * 4; i++) {
@@ -151,8 +167,8 @@ static void KeyExpansion(const uint8_t *key, uint8_t *w) {
     }
 }
 
-void log_state(int round, const char *stage, const uint8_t *state) {
-    int i;
+void LogState(uint32_t round, const char *stage, const uint8_t *state) {
+    uint32_t i;
 
     printf("round[%2d].%s \t", round, stage);
     for (i = 0; i < 16; i++) {
@@ -161,8 +177,8 @@ void log_state(int round, const char *stage, const uint8_t *state) {
     putchar('\n');
 }
 
-void aes_enc(const uint8_t *in, const uint8_t *key, uint8_t *out) {
-    int i, j;
+void AESEnc(const uint8_t *in, const uint8_t *key, uint8_t *out) {
+    uint32_t i, j;
     uint8_t state[16];
     uint8_t w[(Nr + 1) * 16];
 
@@ -222,20 +238,4 @@ void aes_enc(const uint8_t *in, const uint8_t *key, uint8_t *out) {
         for (j = 0; j < 4; j++)
             out[i * 4 + j] = state[j * 4 + i];
     }
-}
-
-uint8_t GFMultiplication(uint8_t a, uint8_t b) {
-    uint8_t c = 0;
-    for (uint8_t i = 0; i < 8; i++) {
-        if ((b & 1) == 1)
-            c ^= a;
-        if (a & 0x80) {
-            a <<= 1;
-            a ^= 0x1b;
-        } else {
-            a <<= 1;
-        }
-        b >>= 1;
-    }
-    return c;
 }

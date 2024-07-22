@@ -7,8 +7,6 @@
 
 #define AES_LOG 0
 
-void aes_enc(const uint8_t *in, const uint8_t *key, uint8_t *out);
-
-uint8_t GFMultiplication(uint8_t a, uint8_t b);
+void AESEnc(const uint8_t *in, const uint8_t *key, uint8_t *out);
 
 #endif //SIMPLEAES256GCM_AES_H
