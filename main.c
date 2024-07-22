@@ -1,11 +1,9 @@
 #include "aes.h"
 #include "gcm.h"
 #include <stdio.h>
+#include <string.h>
 
-void AESEncTest() {
-    uint32_t i;
-    uint32_t test_flag;
-
+void AESTest() {
     uint8_t plaintext[16] = {
             0x00, 0x11, 0x22, 0x33,
             0x44, 0x55, 0x66, 0x77,
@@ -61,25 +59,12 @@ void AESEncTest() {
 #endif
 
     AESEnc(plaintext, key, res);
-    test_flag = 1;
-    for (i = 0; i < 16; i++) {
-        if (res[i] != ciphertext[i]) {
-            test_flag = 0;
-            break;
-        }
-    }
-    printf("AES enc Test: ");
-    if (test_flag) {
-        printf("passed\n");
-    } else {
-        printf("FAILED\n");
-    }
+    printf("AES enc Test: %s\n",
+           memcmp(res, ciphertext, sizeof(res)) == 0 ? "passed" : "FAILED");
 }
 
-void GCMAETest() {
+void GCMTest() {
 #if USE_IV_DIRECTLY == 0
-    uint32_t i;
-    uint32_t test_flag;
     uint32_t len_p = 384;
     uint32_t len_a = 224;
     uint32_t len_iv = 96;
@@ -121,9 +106,12 @@ void GCMAETest() {
     };
     uint8_t c_res[48];
     uint8_t t_res[16];
+    uint8_t p_res[48];
+    uint32_t access_res;
+
+    GCMAE(p, len_p, key, iv, len_iv, a, len_a, 128, c_res, t_res);
+    GCMAD(c, len_p, key, iv, len_iv, a, len_a, t, 128, p_res, &access_res);
 #else
-    uint32_t i;
-    uint32_t test_flag;
     uint32_t len_p = 480;
     uint32_t len_a = 160;
     uint8_t key[32] = {
@@ -167,43 +155,27 @@ void GCMAETest() {
     };
     uint8_t c_res[60];
     uint8_t t_res[16];
-#endif
+    uint8_t p_res[60];
+    uint32_t access_res;
 
     GCMAE(p, len_p, key, iv, a, len_a, 128, c_res, t_res);
+    GCMAD(c, len_p, key, iv, a, len_a, t, 128, p_res, &access_res);
+#endif
 
-    printf("GCM ae test: cipher ");
-    test_flag = 1;
-    for (i = 0; i < len_p / 8; i++) {
-        if (c[i] != c_res[i]) {
-            test_flag = 0;
-            break;
-        }
-    }
-    if (test_flag) {
-        printf("passed");
-    } else {
-        printf("FAILED");
-    }
-
-    printf(", target ");
-    test_flag = 1;
-    for (i = 0; i < 16; i++) {
-        if (t[i] != t_res[i]) {
-            test_flag = 0;
-            break;
-        }
-    }
-    if (test_flag) {
-        printf("passed\n");
-    } else {
-        printf("FAILED\n");
-    }
+    printf("GCM AE test: cipher %s, target %s\n",
+           memcmp(c, c_res, sizeof(c)) == 0 ? "passed" : "FAILED",
+           memcmp(t, t_res, sizeof(t)) == 0 ? "passed" : "FAILED"
+    );
+    printf("GCM AD test: plain %s, access %s\n",
+           memcmp(p, p_res, sizeof(p)) == 0 ? "passed" : "FAILED",
+           access_res == 1 ? "passed" : "FAILED"
+    );
 }
 
 void Test() {
     printf("AES standard: %d\n", AES_STD);
-    AESEncTest();
-    GCMAETest();
+    AESTest();
+    GCMTest();
 }
 
 int main() {

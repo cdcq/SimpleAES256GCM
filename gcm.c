@@ -167,42 +167,9 @@ static void GCTR(const uint8_t *x, uint32_t len, const uint8_t *key, const uint8
     }
 }
 
-#if USE_IV_DIRECTLY == 0
-
-void GCMAE(
-        const uint8_t *p, uint32_t len_p, const uint8_t *key, const uint8_t *iv, uint32_t len_iv,
-        const uint8_t *a, uint32_t len_a, uint32_t len_t,
-        uint8_t *c, uint8_t *t) {
-#else
-
-void GCMAE(
-        const uint8_t *p, uint32_t len_p, const uint8_t *key, const uint8_t *iv,
-        const uint8_t *a, uint32_t len_a, uint32_t len_t,
-        uint8_t *c, uint8_t *t) {
-#endif
-    uint32_t u;
-    uint32_t v;
-    uint8_t *s_data;
-    uint8_t h[16];
-    uint8_t temp[16];
-    uint8_t j0[16];
-    uint8_t ibc[16];
-    uint8_t s[16];
-#if USE_IV_DIRECTLY == 0
+void CalculateJ0(const uint8_t *iv, uint32_t len_iv, const uint8_t *h, uint8_t *j0) {
     uint32_t j0_len;
     uint8_t *j0_data = NULL;
-#endif
-
-    memset(temp, 0, sizeof(uint8_t) * 16);
-    AESEnc(temp, key, h);
-#if GCM_LOG == 1
-    printf("H: ");
-    LogData(h, 128, '\n');
-#endif
-
-#if USE_IV_DIRECTLY == 1
-    memcpy(j0, iv, sizeof(uint8_t) * 16);
-#else
     if (len_iv == 96) {
         memset(j0, 0, sizeof(uint8_t) * 16);
         memcpy(j0, iv, sizeof(uint8_t) * 12);
@@ -216,6 +183,66 @@ void GCMAE(
 
         GHASH(j0_data, j0_len, h, j0);
     }
+
+    free(j0_data);
+}
+
+static void CalculateTag(
+        const uint8_t *c, uint32_t len_c, const uint8_t *key, const uint8_t *a, uint32_t len_a,
+        const uint8_t *h, const uint8_t *j0, uint32_t len_t, uint8_t *t) {
+    uint32_t u;
+    uint32_t v;
+    uint8_t *s_data;
+    uint8_t s[16];
+
+    u = Ceil128(len_c);
+    v = Ceil128(len_a);
+    s_data = malloc(sizeof(uint8_t) * (v / 8 + u / 8 + 16));
+    memset(s_data, 0, sizeof(uint8_t) * (v / 8 + u / 8 + 16));
+    memcpy(s_data, a, sizeof(uint8_t) * Division8(len_a));
+    memcpy(s_data + v / 8, c, sizeof(uint8_t) * Division8(len_c));
+    PutBE32(s_data + v / 8 + u / 8 + 4, len_a);
+    PutBE32(s_data + v / 8 + u / 8 + 12, len_c);
+    GHASH(s_data, u + v + 128, h, s);
+#if GCM_LOG == 1
+    printf("GHASH(H,A,C): ");
+    LogData(s, 128, '\n');
+#endif
+    GCTR(s, 128, key, j0, t);
+    MSB(t, len_t);
+
+    free(s_data);
+}
+
+#if USE_IV_DIRECTLY == 0
+
+void GCMAE(
+        const uint8_t *p, uint32_t len_p, const uint8_t *key, const uint8_t *iv, uint32_t len_iv,
+        const uint8_t *a, uint32_t len_a, uint32_t len_t,
+        uint8_t *c, uint8_t *t) {
+#else
+
+void GCMAE(
+        const uint8_t *p, uint32_t len_p, const uint8_t *key, const uint8_t *iv,
+        const uint8_t *a, uint32_t len_a, uint32_t len_t,
+        uint8_t *c, uint8_t *t) {
+#endif
+    uint8_t h[16];
+    uint8_t temp[16];
+    uint8_t j0[16];
+    uint8_t ibc[16];
+
+    memset(temp, 0, sizeof(uint8_t) * 16);
+    AESEnc(temp, key, h);
+#if GCM_LOG == 1
+    printf("H: ");
+    LogData(h, 128, '\n');
+#endif
+
+#if USE_IV_DIRECTLY == 1
+    memcpy(j0, iv, sizeof(uint8_t) * 16);
+#else
+    CalculateJ0(iv, len_iv, h, j0);
 #endif
 #if GCM_LOG == 1
     printf("Y[0]: ");
@@ -225,25 +252,42 @@ void GCMAE(
     Inc32(ibc);
     GCTR(p, len_p, key, ibc, c);
 
-    u = Ceil128(len_p);
-    v = Ceil128(len_a);
-    s_data = malloc(sizeof(uint8_t) * (v / 8 + u / 8 + 16));
-    memset(s_data, 0, sizeof(uint8_t) * (v / 8 + u / 8 + 16));
-    memcpy(s_data, a, sizeof(uint8_t) * Division8(len_a));
-    memcpy(s_data + v / 8, c, sizeof(uint8_t) * Division8(len_p));
-    PutBE32(s_data + v / 8 + u / 8 + 4, len_a);
-    PutBE32(s_data + v / 8 + u / 8 + 12, len_p);
-    GHASH(s_data, u + v + 128, h, s);
-#if GCM_LOG == 1
-    printf("GHASH(H,A,C): ");
-    LogData(s, 128, '\n');
-#endif
+    CalculateTag(c, len_p, key, a, len_a, h, j0, len_t, t);
+}
 
-    GCTR(s, 128, key, j0, t);
-    MSB(t, len_t);
-
-    free(s_data);
 #if USE_IV_DIRECTLY == 0
-    free(j0_data);
+
+void GCMAD(
+        const uint8_t *c, uint32_t len_c, const uint8_t *key, const uint8_t *iv, uint32_t len_iv,
+        const uint8_t *a, uint32_t len_a, const uint8_t *t, uint32_t len_t,
+        uint8_t *p, uint32_t *access) {
+#else
+
+void GCMAD(
+        const uint8_t *c, uint32_t len_c, const uint8_t *key, const uint8_t *iv,
+        const uint8_t *a, uint32_t len_a, const uint8_t *t, uint32_t len_t,
+        uint8_t *p, uint32_t *access) {
 #endif
+    uint32_t i;
+    uint8_t h[16];
+    uint8_t temp[16];
+    uint8_t j0[16];
+    uint8_t ibc[16];
+    uint8_t t2[16];
+
+    memset(temp, 0, sizeof(uint8_t) * 16);
+    AESEnc(temp, key, h);
+
+#if USE_IV_DIRECTLY == 1
+    memcpy(j0, iv, sizeof(uint8_t) * 16);
+#else
+    CalculateJ0(iv, len_iv, h, j0);
+#endif
+    memcpy(ibc, j0, sizeof(uint8_t) * 16);
+    Inc32(ibc);
+    GCTR(c, len_c, key, ibc, p);
+
+    CalculateTag(c, len_c, key, a, len_a, h, j0, len_t, t2);
+
+    *access = memcmp(t, t2, sizeof(t2)) == 0;
 }
